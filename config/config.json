@@ -1,0 +1,7 @@
+{
+    "timestamp": "2019-07-23T23:59:59.999999Z",
+    "raw_data_dir": "s2_data_",
+    "entity_dir": "s2_entities_",
+    "supp_sents_dir": "s2_supp_sents_",
+    "ddi_output_dir": "s2_ddi_out_"
+}
