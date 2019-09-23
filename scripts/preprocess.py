@@ -10,14 +10,32 @@ import glob
 import tqdm
 import multiprocessing
 from datetime import datetime
+from typing import Dict
+import itertools
 
 from src.data_getter import DataGetter
 from src.ner_and_linker import DrugSupplementLinker
+from src.cui_handler import CUIHandler
 
 from s2base2.list_utils import make_chunks
 
 
-def batch_run_ner_linking(batch_dict):
+def clean_ent(ent: Dict) -> Dict:
+    """
+    Get top cui from scispacy entity linking output
+    Return entity dictionary
+    :param ent:
+    :return:
+    """
+    return {
+        "span": [[ent['start'], ent['end']]],
+        "string": ent['string'],
+        "umls_types": ent['linked_cuis'][0][1],
+        "id": ent['linked_cuis'][0][0]
+    }
+
+
+def batch_run_ner_linking(batch_dict: Dict):
     """
     Process one batch of paper files (files are jsonl with one paper per line)
     :param batch_dict:
@@ -72,6 +90,61 @@ def batch_run_ner_linking(batch_dict):
                             outf.write('\n')
 
 
+def batch_filter_sentences(batch_dict: Dict):
+    """
+    Filter sentences for supp/drug ents
+    :param batch_dict:
+    :return:
+    """
+    input_file = batch_dict["input_file"]
+    output_file = batch_dict["output_file"]
+    handler = batch_dict["cui_handler"]
+
+    with open(input_file, 'r') as in_f, open(output_file, 'w+') as out_f:
+        counter = 0
+        for line in tqdm.tqdm(in_f):
+            sent = json.loads(line.strip())
+            entities = sent["entities"]
+
+            # skip sentence if only one detected entity
+            if len(entities) < 2:
+                continue
+
+            # skip sentence if all entity strings are the same
+            if len(set([ent["string"].strip() for ent in entities])) < 2:
+                continue
+
+            # clean entities and construct dicts
+            keep_ents = [clean_ent(ent) for ent in entities]
+
+            # generate sentence entry for each pair of entities
+            for ent1, ent2 in itertools.combinations(keep_ents, 2):
+
+                # skip if same id
+                if ent1['id'] == ent2['id']:
+                    continue
+
+                # skip if same entity
+                if ent1['string'].strip() == ent2['string'].strip():
+                    continue
+
+                # skip if not supp-drug or supp-supp
+                if not (handler.is_supp_drug(ent1['id'], ent2['id']) or handler.is_supp_supp(ent1['id'], ent2['id'])):
+                    continue
+
+                # create sentence entry for DDI model
+                output_dict = {
+                    "id": sent["id"] + '-' + str(counter),
+                    "sentence_id": sent["sentence_id"],
+                    "sentence": sent["sentence"],
+                    "arg1": ent1,
+                    "arg2": ent2
+                }
+                json.dump(output_dict, out_f)
+                out_f.write('\n')
+                counter += 1
+
+
 CONFIG_FILE = 'config/config.json'
 NUM_PROCESSES = multiprocessing.cpu_count() // 2
 
@@ -80,6 +153,10 @@ if __name__ == '__main__':
     assert os.path.exists(CONFIG_FILE)
     with open(CONFIG_FILE, 'r') as f:
         config = json.load(f)
+
+    # determine run type
+    rerun_ner = config['rerun_ner']
+    rerun_ddi = config['rerun_ddi']
 
     # get last time
     LAST_TIME = datetime.strptime(config['timestamp'], '%Y-%m-%dT%H:%M:%S.%fZ')
@@ -109,36 +186,64 @@ if __name__ == '__main__':
     os.makedirs(SUPP_SENTS_DIR)
     os.makedirs(DDI_OUTPUT_DIR)
 
-    # get new data from S2 DB
+    # --- get new data from S2 DB ---
     data_getter = DataGetter(timestamp=LAST_TIME, output_dir=RAW_DATA_DIR)
     data_getter.get_new_data()
 
-    # run NER and Linking
+    # --- run NER and Linking ---
     # form batches
+    if rerun_ner:
+        all_files = []
+        for raw_dir in glob.glob(os.path.join('data', '*', 's2_data')):
+            all_files += glob.glob(os.path.join(raw_dir, '*.jsonl'))
+    else:
+        all_files = glob.glob(os.path.join(RAW_DATA_DIR, '*.jsonl'))
+    print(f'{len(all_files)} S2 data files for NER and linking.')
+
     batches = [{
         "batch_num": batch_num,
         "file_list": file_batch,
         "entity_file": os.path.join(ENTITY_DIR, f'entities.jsonl.{batch_num}'),
         "skipped_file": os.path.join(ENTITY_DIR, f'skipped.txt.{batch_num}')
     } for batch_num, file_batch in enumerate(make_chunks(
-        sorted(glob.glob(os.path.join(RAW_DATA_DIR, '*.jsonl'))),
-        NUM_PROCESSES
+        sorted(all_files), NUM_PROCESSES
     ))]
     with multiprocessing.Pool(processes=NUM_PROCESSES) as p:
         p.map(batch_run_ner_linking, batches)
 
-    # TODO: filter CUIs for supplements and drugs
+    # --- filter sentences for supp/drug CUIs ---
+    # create CUI handler
+    cui_handler = CUIHandler()
 
-    # TODO: compile and run BERT-DDI model on sentences
+    # form batches
+    if rerun_ner or (not rerun_ner and not rerun_ddi):
+        all_files = glob.glob(os.path.join(ENTITY_DIR, 'entities.jsonl.*'))
+    else:
+        all_files = []
+        for ent_dir in glob.glob(os.path.join('data', '*', 's2_entities')):
+            all_files += glob.glob(os.path.join(ent_dir, 'entities.jsonl.*'))
+    print(f'{len(all_files)} entity files for filtering.')
 
-    # TODO: compile BERT-DDI results
+    batches = [{
+        "input_file": filename,
+        "output_file": os.path.join(SUPP_SENTS_DIR, f'sentences.jsonl.{batch_num}'),
+        "cui_handler": cui_handler
+    } for batch_num, filename in enumerate(
+        sorted(all_files)
+    )]
+    with multiprocessing.Pool(processes=NUM_PROCESSES) as p:
+        p.map(batch_filter_sentences, batches)
 
-    # TODO: form final dicts
+    # --- write output log file ---
+    log_dict = {
+        "timestamp": START_TIME.strftime('%Y-%m-%dT%H:%M:%S.%fZ'),
+        "raw_data_dir": RAW_DATA_DIR,
+        "entity_dir": ENTITY_DIR,
+        "supp_sents_dir": SUPP_SENTS_DIR,
+        "ddi_output_dir": DDI_OUTPUT_DIR,
+        "output_file": OUTPUT_FILE
+    }
+    with open('config/log.json', 'w+') as out_f:
+        json.dump(log_dict, out_f)
 
-    # TODO: tar and zip output files
-
-    # TODO: write log
-
-
-
-
+    print('done.')
