@@ -13,9 +13,9 @@ from datetime import datetime
 from typing import Dict
 import itertools
 
-from src.data_getter import DataGetter
-from src.ner_and_linker import DrugSupplementLinker
-from src.cui_handler import CUIHandler
+from suppai.data_getter import DataGetter
+from suppai.ner_and_linker import DrugSupplementLinker
+from suppai.cui_handler import CUIHandler
 
 from s2base2.list_utils import make_chunks
 
@@ -146,7 +146,7 @@ def batch_filter_sentences(batch_dict: Dict):
 
 
 CONFIG_FILE = 'config/config.json'
-NUM_PROCESSES = multiprocessing.cpu_count() // 2
+NUM_PROCESSES = multiprocessing.cpu_count() - 8
 
 if __name__ == '__main__':
     # load config file
@@ -187,10 +187,12 @@ if __name__ == '__main__':
     os.makedirs(DDI_OUTPUT_DIR)
 
     # --- get new data from S2 DB ---
+    print('Getting new papers from S2 DB...')
     data_getter = DataGetter(timestamp=LAST_TIME, output_dir=RAW_DATA_DIR)
     data_getter.get_new_data()
 
     # --- run NER and Linking ---
+    print('Run NER and linking...')
     # form batches
     if rerun_ner:
         all_files = []
@@ -212,9 +214,9 @@ if __name__ == '__main__':
         p.map(batch_run_ner_linking, batches)
 
     # --- filter sentences for supp/drug CUIs ---
+    print('Filtering sentences...')
     # create CUI handler
     cui_handler = CUIHandler()
-
     # form batches
     if rerun_ner or (not rerun_ner and not rerun_ddi):
         all_files = glob.glob(os.path.join(ENTITY_DIR, 'entities.jsonl.*'))
@@ -235,6 +237,7 @@ if __name__ == '__main__':
         p.map(batch_filter_sentences, batches)
 
     # --- write output log file ---
+    print('Logging...')
     log_dict = {
         "timestamp": START_TIME.strftime('%Y-%m-%dT%H:%M:%S.%fZ'),
         "raw_data_dir": RAW_DATA_DIR,
