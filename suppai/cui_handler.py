@@ -47,6 +47,31 @@ class CUIHandler:
 
         self.valid_cuis = set(self.map_dict.keys())
 
+    def form_cui_entry(self, cui):
+        """
+        Form CUI metadata entry
+        :param cui:
+        :return:
+        """
+        if cui in self.supps:
+            return {
+                'preferred_name': self.cluster_dict['supplements']['preferred_name'],
+                'synonyms': self.cluster_dict['supplements']['synonyms'],
+                'definition': self.cluster_dict['supplements']['definition'],
+                'tradenames': [],
+                'ent_type': 'supplement'
+            }
+        elif cui in self.drugs:
+            return {
+                'preferred_name': self.cluster_dict['drugs']['preferred_name'],
+                'synonyms': self.cluster_dict['drugs']['synonyms'],
+                'definition': self.cluster_dict['drugs']['definition'],
+                'tradenames': self.cluster_dict['drugs']['tradenames'],
+                'ent_type': 'drug'
+            }
+        else:
+            raise KeyError("Invalid supplement or drug CUI!")
+
     def is_valid_cui(self, cui: str):
         return cui in self.valid_cuis
 
