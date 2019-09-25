@@ -241,6 +241,7 @@ if __name__ == '__main__':
         "entity_dir": ENTITY_DIR,
         "supp_sents_dir": SUPP_SENTS_DIR,
         "ddi_output_dir": DDI_OUTPUT_DIR,
+        "aggregate": not (rerun_ner or (not rerun_ner and not rerun_ddi)),
         "output_file": OUTPUT_FILE
     }
     with open('config/log.json', 'w+') as out_f:

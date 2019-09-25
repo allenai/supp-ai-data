@@ -33,14 +33,14 @@ class CUIHandler:
 
         for cluster_key, cluster_members in self.cluster_dict['supplements'].items():
             self.supps.add(cluster_key)
-            for mem in cluster_members:
+            for mem in cluster_members['members']:
                 if mem in self.map_dict and self.map_dict[mem] != cluster_key:
                     raise Exception("Overlapping clusters!")
                 self.map_dict[mem] = cluster_key
 
         for cluster_key, cluster_members in self.cluster_dict['drugs'].items():
             self.drugs.add(cluster_key)
-            for mem in cluster_members:
+            for mem in cluster_members['members']:
                 if mem in self.map_dict and self.map_dict[mem] != cluster_key:
                     raise Exception("Overlapping clusters!")
                 self.map_dict[mem] = cluster_key

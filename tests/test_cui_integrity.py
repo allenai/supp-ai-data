@@ -19,7 +19,7 @@ class TestCUIIntegrity(unittest.TestCase):
         :return:
         """
         for k, v in self.cui_dict["supplements"].items():
-            assert k in v
+            assert k in v['members']
 
     def test_drug_clusters_include_keys(self):
         """
@@ -27,15 +27,15 @@ class TestCUIIntegrity(unittest.TestCase):
         :return:
         """
         for k, v in self.cui_dict["drugs"].items():
-            assert k in v
+            assert k in v['members']
 
     def test_no_supp_drug_overlaps(self):
         """
         Assert supplement and drug identifiers don't overlap
         :return:
         """
-        supp_cuis = flatten([v for v in self.cui_dict["supplements"].values()])
-        drug_cuis = flatten([v for v in self.cui_dict["drugs"].values()])
+        supp_cuis = flatten([v['members'] for v in self.cui_dict["supplements"].values()])
+        drug_cuis = flatten([v['members'] for v in self.cui_dict["drugs"].values()])
         assert not set(supp_cuis) & set(drug_cuis)
 
     def test_no_supp_cluster_overlaps(self):
@@ -45,8 +45,8 @@ class TestCUIIntegrity(unittest.TestCase):
         """
         done_cuis = set([])
         for v in self.cui_dict["supplements"].values():
-            assert not set(v) & done_cuis
-            done_cuis.update(set(v))
+            assert not set(v['members']) & done_cuis
+            done_cuis.update(set(v['members']))
 
     def test_no_drug_cluster_overlaps(self):
         """
@@ -55,5 +55,5 @@ class TestCUIIntegrity(unittest.TestCase):
         """
         done_cuis = set([])
         for v in self.cui_dict["drugs"].values():
-            assert not set(v) & done_cuis
-            done_cuis.update(set(v))
+            assert not set(v['members']) & done_cuis
+            done_cuis.update(set(v['members']))
