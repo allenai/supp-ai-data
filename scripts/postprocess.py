@@ -413,11 +413,7 @@ if __name__ == '__main__':
         json.dump({
             "timestamp": log_dict["timestamp"],
             "rerun_ner": False,
-            "rerun_ddi": False,
-            "raw_data_dir": log_dict['raw_data_dir'],
-            "entity_dir": log_dict['entity_dir'],
-            "supp_sents_dir": log_dict['supp_sents_dir'],
-            "ddi_output_dir": log_dict['ddi_output_dir']
+            "rerun_ddi": False
         }, config_f)
 
     print('done.')

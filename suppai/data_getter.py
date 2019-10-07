@@ -25,21 +25,35 @@ class DataGetter:
         Fetch new data from S2 corpus DB
         :return:
         """
-        psql_date_format = self.last_time.strftime('%Y-%m-%d %H:%M:%S.%f+00')
-        query = """
-            SELECT t2.sha, t1.title, t1.doi, t1.pmid, 
-                   t1.year, t1.venue, t1.abstract, 
-                   t1.section_body, t1.section_header, 
-                   t1.fields_of_study 
-            FROM papers t1 
-            INNER JOIN legacy_paper_ids t2 ON t1.id = t2.paper_id 
-            WHERE t1.pmid IS NOT NULL 
-                AND t1.title IS NOT NULL 
-                AND t1.abstract IS NOT NULL 
-                AND t2.id_type='Canonical'
-                AND t1.inserted > '{}';
-        """
-        db_iterator = S2DBIterator(query.format(psql_date_format))
+        if self.last_time:
+            psql_date_format = self.last_time.strftime('%Y-%m-%d %H:%M:%S.%f+00')
+            query = f"""
+                SELECT t2.sha, t1.title, t1.doi, t1.pmid, 
+                       t1.year, t1.venue, t1.abstract, 
+                       t1.section_body, t1.section_header, 
+                       t1.fields_of_study 
+                FROM papers t1 
+                INNER JOIN legacy_paper_ids t2 ON t1.id = t2.paper_id 
+                WHERE t1.pmid IS NOT NULL 
+                    AND t1.title IS NOT NULL 
+                    AND t1.abstract IS NOT NULL 
+                    AND t2.id_type='Canonical'
+                    AND t1.inserted > '{psql_date_format}';
+            """
+        else:
+            query = """
+                SELECT t2.sha, t1.title, t1.doi, t1.pmid, 
+                       t1.year, t1.venue, t1.abstract, 
+                       t1.section_body, t1.section_header, 
+                       t1.fields_of_study 
+                FROM papers t1 
+                INNER JOIN legacy_paper_ids t2 ON t1.id = t2.paper_id 
+                WHERE t1.pmid IS NOT NULL 
+                    AND t1.title IS NOT NULL 
+                    AND t1.abstract IS NOT NULL 
+                    AND t2.id_type='Canonical';
+            """
+        db_iterator = S2DBIterator(query)
 
         for paper_id, title, doi, pmid, year, venue, abstract, body_text, section_headers, fos in tqdm.tqdm(db_iterator):
             output_file = os.path.join(self.output_dir, f'{paper_id[:4]}.jsonl')

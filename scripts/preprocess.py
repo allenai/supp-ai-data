@@ -159,8 +159,11 @@ if __name__ == '__main__':
     rerun_ner = config['rerun_ner']
     rerun_ddi = config['rerun_ddi']
 
-    # get last time
-    LAST_TIME = datetime.strptime(config['timestamp'], '%Y-%m-%dT%H:%M:%S.%fZ')
+    # get last time is timestamp available, else get all
+    if config['timestamp']:
+        LAST_TIME = datetime.strptime(config['timestamp'], '%Y-%m-%dT%H:%M:%S.%fZ')
+    else:
+        LAST_TIME = None
 
     # get start time
     START_TIME = datetime.now()
