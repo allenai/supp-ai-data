@@ -55,18 +55,18 @@ class CUIHandler:
         """
         if cui in self.supps:
             return {
-                'preferred_name': self.cluster_dict['supplements']['preferred_name'],
-                'synonyms': self.cluster_dict['supplements']['synonyms'],
-                'definition': self.cluster_dict['supplements']['definition'],
+                'preferred_name': self.cluster_dict['supplements'][cui]['preferred_name'],
+                'synonyms': self.cluster_dict['supplements'][cui]['synonyms'],
+                'definition': self.cluster_dict['supplements'][cui]['definition'],
                 'tradenames': [],
                 'ent_type': 'supplement'
             }
         elif cui in self.drugs:
             return {
-                'preferred_name': self.cluster_dict['drugs']['preferred_name'],
-                'synonyms': self.cluster_dict['drugs']['synonyms'],
-                'definition': self.cluster_dict['drugs']['definition'],
-                'tradenames': self.cluster_dict['drugs']['tradenames'],
+                'preferred_name': self.cluster_dict['drugs'][cui]['preferred_name'],
+                'synonyms': self.cluster_dict['drugs'][cui]['synonyms'],
+                'definition': self.cluster_dict['drugs'][cui]['definition'],
+                'tradenames': self.cluster_dict['drugs'][cui]['tradenames'],
                 'ent_type': 'drug'
             }
         else:

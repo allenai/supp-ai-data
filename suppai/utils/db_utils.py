@@ -50,7 +50,7 @@ def get_paper_metadata(s2_ids: List[str]) -> Dict:
         for entry in author_entries:
             author_list.append({
                 "first": entry[1],
-                "middle": entry[2],
+                "middle": ' '.join(entry[2]) if entry[2] else None,
                 "last": entry[3],
                 "suffix": entry[4]
             })
