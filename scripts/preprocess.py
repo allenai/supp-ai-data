@@ -260,6 +260,6 @@ if __name__ == '__main__':
         "output_file": OUTPUT_FILE
     }
     with open('config/log.json', 'w+') as out_f:
-        json.dump(log_dict, out_f, indent=4, sort_keys=True)
+        json.dump(log_dict, out_f, indent=4)
 
     print('done.')

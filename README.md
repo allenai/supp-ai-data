@@ -25,7 +25,7 @@ This pipeline requires a configuration file, located at `config/config.json`, wi
 }
 ```
 
-The timestamp indicates the last time the pipeline was run. Papers updated after the timestamp will be retreived and processed. If the timestamp is None, all PubMed papers from S2 will be retrieved.
+The timestamp indicates the last time the pipeline was run. Papers updated after the timestamp will be retreived and processed. If the timestamp is `None`, all PubMed papers from S2 will be retrieved.
 
 The "rerun_ner" flag indicates whether NER should be re-run over all historical papers. If TRUE, BERT-DDI will also be re-run.
 

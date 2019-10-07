@@ -414,6 +414,6 @@ if __name__ == '__main__':
             "timestamp": log_dict["timestamp"],
             "rerun_ner": False,
             "rerun_ddi": False
-        }, config_f)
+        }, config_f, indent=4)
 
     print('done.')
