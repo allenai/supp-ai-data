@@ -12,6 +12,7 @@ import multiprocessing
 from datetime import datetime
 from typing import Dict
 import itertools
+import shutil
 
 from suppai.data_getter import DataGetter
 from suppai.ner_and_linker import DrugSupplementLinker
@@ -146,7 +147,7 @@ def batch_filter_sentences(batch_dict: Dict):
 
 
 CONFIG_FILE = 'config/config.json'
-NUM_PROCESSES = multiprocessing.cpu_count() - 8
+NUM_PROCESSES = multiprocessing.cpu_count() // 2
 
 if __name__ == '__main__':
     # load config file
@@ -218,7 +219,7 @@ if __name__ == '__main__':
     # create CUI handler
     cui_handler = CUIHandler()
     # form batches
-    if rerun_ner or (not rerun_ner and not rerun_ddi):
+    if rerun_ner or not (rerun_ner or rerun_ddi):
         all_files = glob.glob(os.path.join(ENTITY_DIR, 'entities.jsonl.*'))
     else:
         all_files = []
@@ -236,18 +237,26 @@ if __name__ == '__main__':
     with multiprocessing.Pool(processes=NUM_PROCESSES) as p:
         p.map(batch_filter_sentences, batches)
 
+    # aggregate into one file
+    with open(os.path.join(SUPP_SENTS_DIR, f'supp_sentences_{header_str}.jsonl'), 'wb') as wfd:
+        for f in glob.glob(os.path.join(SUPP_SENTS_DIR, 'sentences.jsonl.*')):
+            with open(f, 'rb') as fd:
+                shutil.copyfileobj(fd, wfd)
+            os.remove(f)
+
     # --- write output log file ---
     print('Logging...')
     log_dict = {
         "timestamp": START_TIME.strftime('%Y-%m-%dT%H:%M:%S.%fZ'),
+        "header_str": header_str,
         "raw_data_dir": RAW_DATA_DIR,
         "entity_dir": ENTITY_DIR,
         "supp_sents_dir": SUPP_SENTS_DIR,
         "ddi_output_dir": DDI_OUTPUT_DIR,
-        "aggregate": not (rerun_ner or (not rerun_ner and not rerun_ddi)),
+        "aggregate": not (rerun_ner or rerun_ddi),
         "output_file": OUTPUT_FILE
     }
     with open('config/log.json', 'w+') as out_f:
-        json.dump(log_dict, out_f)
+        json.dump(log_dict, out_f, indent=4, sort_keys=True)
 
     print('done.')

@@ -1,3 +1,5 @@
+git+ssh://git@github.com/allenai/pys2.git
 git+ssh://git@github.com/allenai/s2base2.git
 psycopg2
 tqdm
+spacy
