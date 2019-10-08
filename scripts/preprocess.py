@@ -158,6 +158,7 @@ if __name__ == '__main__':
     # determine run type
     rerun_ner = config['rerun_ner']
     rerun_ddi = config['rerun_ddi']
+    bert_ddi_model = config['bert_ddi_model']
 
     # get last time is timestamp available, else get all
     if config['timestamp']:
@@ -252,6 +253,7 @@ if __name__ == '__main__':
     log_dict = {
         "timestamp": START_TIME.strftime('%Y-%m-%dT%H:%M:%S.%fZ'),
         "header_str": header_str,
+        "bert_ddi_model": bert_ddi_model,
         "raw_data_dir": RAW_DATA_DIR,
         "entity_dir": ENTITY_DIR,
         "supp_sents_dir": SUPP_SENTS_DIR,

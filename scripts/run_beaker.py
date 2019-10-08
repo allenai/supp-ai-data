@@ -36,7 +36,7 @@ tasks:
     datasetMounts:
     - datasetId: {}
       containerPath: /dataset/data.jsonl
-    - datasetId: ds_6z4j2jjzyjgh
+    - datasetId: {}
       containerPath: /model
     requirements:
       gpuCount: 1
@@ -56,6 +56,7 @@ if __name__ == '__main__':
     supp_sents_dir = log_dict['supp_sents_dir']
     ddi_output_dir = log_dict['ddi_output_dir']
     header_str = log_dict['header_str']
+    bert_ddi_model = log_dict['bert_ddi_model']
 
     # get sentences
     try:
@@ -69,7 +70,7 @@ if __name__ == '__main__':
     with open(supp_sents_file, 'r') as f:
         for line in f:
             all_sents.append(line)
-    num_files = len(all_sents) // CHUNK_SIZE
+    num_files = max(len(all_sents) // CHUNK_SIZE, 1)
 
     # write to batch files
     dataset_files = []
@@ -103,7 +104,7 @@ if __name__ == '__main__':
         exp_header = f'supp_ai_exp_{i:02d}'
         yaml_file = os.path.join(BEAKER_DIR, f'{exp_header}.yaml')
         with open(yaml_file, 'w') as yaml_f:
-            yaml_f.write(BEAKER_TEMPLATE.format(exp_header, ds_id))
+            yaml_f.write(BEAKER_TEMPLATE.format(exp_header, ds_id, bert_ddi_model))
         beaker_args = ['beaker', 'experiment', 'create', '-f', yaml_file]
         exp_output = subprocess.check_output(' '.join(beaker_args), stderr=subprocess.STDOUT, shell=True)
         exp_sents = [s.strip() for s in exp_output.decode('utf-8').split('\n')]
@@ -152,5 +153,12 @@ if __name__ == '__main__':
             with open(f, 'rb') as fd:
                 shutil.copyfileobj(fd, wfd)
             os.remove(f)
+
+    # write beaker dataset ids to log file
+    log_dict["bert_ddi_model"] = bert_ddi_model
+    log_dict["beaker_dataset_ids"] = ds_ids
+
+    with open(LOG_FILE, 'w') as f:
+        json.dump(log_dict, f, indent=4)
 
     print('done.')
