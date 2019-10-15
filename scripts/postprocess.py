@@ -11,18 +11,19 @@ import glob
 import tqdm
 import gzip
 import tarfile
-from typing import List, Dict, Tuple
+from typing import List, Dict, Tuple, Set
 from collections import defaultdict
 import copy
 import re
 
 from suppai.cui_handler import CUIHandler
 from suppai.utils.db_utils import get_paper_metadata
+from suppai.data import CUIMetadata, PaperAuthor, PaperMetadata, LabeledSpan, EvidenceSentence
 
 from s2base2.list_utils import chunk_iter
 
 
-def keep_positives(input_dirs: List[str], label_dirs: List[str]) -> List:
+def keep_positives(input_dirs: List[str], label_dirs: List[str]) -> List[EvidenceSentence]:
     """
     Read all inputs from input directories and keep only those with
     :param input_dirs:
@@ -82,22 +83,16 @@ def keep_positives(input_dirs: List[str], label_dirs: List[str]) -> List:
                         if (entry['sentence'], arg1_cui, arg2_cui) in uniq_set[pid]:
                             continue
                         else:
-                            new_entry = dict({
-                                "uid": uniq_id,
-                                "confidence": None,
-                                "paper_id": pid,
-                                "sentence_id": entry['sentence_id'],
-                                "sentence": re.sub(r'\s', ' ', entry['sentence']),
-                                "arg1": {
-                                    "id": arg1_cui,
-                                    "span": span1_inds
-                                },
-                                "arg2": {
-                                    "id": arg2_cui,
-                                    "span": span2_inds
-                                }
-                            })
-                            positives.append(new_entry)
+                            new_evidence = EvidenceSentence(
+                                uid=uniq_id,
+                                paper_id=pid,
+                                sentence_id=entry['sentence_id'],
+                                sentence=re.sub(r'\s', ' ', entry['sentence']),
+                                confidence=None,
+                                arg1=LabeledSpan(id=arg1_cui, span=span1_inds),
+                                arg2=LabeledSpan(id=arg2_cui, span=span2_inds)
+                            )
+                            positives.append(new_evidence)
                             uniq_set[pid].add(
                                 (entry['sentence'], arg1_cui, arg2_cui)
                             )
@@ -107,7 +102,7 @@ def keep_positives(input_dirs: List[str], label_dirs: List[str]) -> List:
     return positives
 
 
-def create_interaction_sentence_dicts(positives: List, blacklist: List[str]) -> Tuple[Dict, Dict]:
+def create_interaction_sentence_dicts(positives: List[EvidenceSentence], blacklist: List[str]) -> Tuple[Dict, Dict]:
     """
     Create interaction and sentence dicts
     :param positives:
@@ -123,35 +118,24 @@ def create_interaction_sentence_dicts(positives: List, blacklist: List[str]) -> 
 
     for pos in tqdm.tqdm(positives):
         # skip if sentence empty
-        if not pos["sentence"]:
+        if not pos.sentence:
             continue
 
-        # get arguments
-        arg1 = pos["arg1"]
-        arg2 = pos["arg2"]
-
-        # get CUIs
-        arg1_cui = arg1["id"]
-        arg2_cui = arg2["id"]
-
         # if either cui are not normalizable
-        if not arg1_cui or not arg2_cui:
+        if not pos.arg1.id or not pos.arg2.id:
             continue
 
         # if CUIs are the same, skip
-        if arg1_cui == arg2_cui:
+        if pos.arg1.id == pos.arg2.id:
             continue
 
         # if not one supplement and one drug or both supplements, skip
-        if not handler.is_supp_drug(arg1_cui, arg2_cui) and not handler.is_supp_supp(arg1_cui, arg2_cui):
+        if not handler.is_supp_drug(pos.arg1.id, pos.arg2.id) and not handler.is_supp_supp(pos.arg1.id, pos.arg2.id):
             continue
 
         # if any of the spans are in blacklist
-        span1_inds = arg1["span"]
-        span2_inds = arg2["span"]
-
-        span1_lower = pos['sentence'][span1_inds[0]:span1_inds[1]].strip(' .,').lower()
-        span2_lower = pos['sentence'][span2_inds[0]:span2_inds[1]].strip(' .,').lower()
+        span1_lower = pos.sentence[pos.arg1.span[0]:pos.arg1.span[1]].strip(' .,').lower()
+        span2_lower = pos.sentence[pos.arg2.span[0]:pos.arg2.span[1]].strip(' .,').lower()
 
         if span1_lower in blacklist or span2_lower in blacklist:
             continue
@@ -163,11 +147,11 @@ def create_interaction_sentence_dicts(positives: List, blacklist: List[str]) -> 
             continue
 
         # construct interaction id
-        interaction_id = f'{arg1_cui}-{arg2_cui}'
+        interaction_id = f'{pos.arg1.id}-{pos.arg2.id}'
 
         # add interaction id to both CUIs
-        interaction_dict[arg1_cui].add(interaction_id)
-        interaction_dict[arg2_cui].add(interaction_id)
+        interaction_dict[pos.arg1.id].add(interaction_id)
+        interaction_dict[pos.arg1.id].add(interaction_id)
 
         # add interaction sentence to sentence dict
         sentence_dict[interaction_id].append(pos)
@@ -175,7 +159,7 @@ def create_interaction_sentence_dicts(positives: List, blacklist: List[str]) -> 
     return interaction_dict, sentence_dict
 
 
-def create_cui_metadata_dict(interaction_dict: Dict, sentence_dict: Dict):
+def create_cui_metadata_dict(interaction_dict: Dict[str, Set], sentence_dict: Dict[str, List[EvidenceSentence]]):
     """
     Create CUI metadata dict
     :param interaction_dict:
@@ -219,7 +203,16 @@ def create_cui_metadata_dict(interaction_dict: Dict, sentence_dict: Dict):
     return interaction_dict, sentence_dict, cui_metadata_dict
 
 
-def create_paper_metadata_dict(interaction_dict: Dict, sentence_dict: Dict, cui_dict: Dict) -> Tuple[Dict, Dict, Dict, Dict]:
+def create_paper_metadata_dict(
+        interaction_dict: Dict[str, Set],
+        sentence_dict: Dict[str, List[EvidenceSentence]],
+        cui_dict: Dict[str, CUIMetadata]
+) -> Tuple[
+    Dict[str, Set],
+    Dict[str, List[EvidenceSentence]],
+    Dict[str, CUIMetadata],
+    Dict[str, PaperMetadata]
+]:
     """
     Create paper metadata dict
     :param interaction_dict:
@@ -231,7 +224,7 @@ def create_paper_metadata_dict(interaction_dict: Dict, sentence_dict: Dict, cui_
     all_paper_ids = []
     for entries in sentence_dict.values():
         for entry in entries:
-            all_paper_ids.append(entry["paper_id"])
+            all_paper_ids.append(entry.paper_id)
     all_paper_ids = list(set(all_paper_ids))
     print(f'{len(all_paper_ids)} papers')
 
@@ -268,11 +261,19 @@ def create_paper_metadata_dict(interaction_dict: Dict, sentence_dict: Dict, cui_
         paper_metadata = get_paper_metadata(paper_chunk)
         # TODO: fails to retrieve metadata for some papers, check why, temp solution is to remove missing papers
         for s2_id, metadata_entry in paper_metadata.items():
-            metadata_entry["animal_study"] = metadata_entry['pmid'] in animal_pmids
-            metadata_entry["human_study"] = metadata_entry['pmid'] in human_pmids
-            metadata_entry["clinical_study"] = metadata_entry['pmid'] in clinical_trial_pmids
-            metadata_entry["retraction"] = metadata_entry['pmid'] in retraction_pmids
-            paper_metadata_dict[s2_id] = metadata_entry
+            paper_metadata_dict[s2_id] = PaperMetadata(
+                title=metadata_entry["title"],
+                authors=metadata_entry["authors"],
+                year=metadata_entry["year"],
+                venue=metadata_entry["venue"],
+                doi=metadata_entry["doi"],
+                pmid=metadata_entry["pmid"],
+                fields_of_study=metadata_entry["fields_of_study"],
+                retraction=metadata_entry["pmid"] in animal_pmids,
+                clinical_study=metadata_entry["pmid"] in clinical_trial_pmids,
+                human_study=metadata_entry["pmid"] in human_pmids,
+                animal_study=metadata_entry["pmid"] in animal_pmids
+            )
 
     # temporarily remove interactions and sentences where we can't find paper metadata
     paper_ids_to_remove = set(all_paper_ids) - set(paper_metadata_dict.keys())
@@ -280,26 +281,25 @@ def create_paper_metadata_dict(interaction_dict: Dict, sentence_dict: Dict, cui_
 
     interactions_to_remove = []
     for interaction_id, sentences in sentence_dict.items():
-        new_sents = [sent for sent in sentences if sent["paper_id"] not in paper_ids_to_remove]
+        new_sents = [sent for sent in sentences if sent.paper_id not in paper_ids_to_remove]
         if new_sents:
             sentence_dict[interaction_id] = new_sents
         else:
             interactions_to_remove.append(interaction_id)
 
     for interaction_id in interactions_to_remove:
-        del sentence_dict[interaction_id]
+        if interaction_id in sentence_dict:
+            del sentence_dict[interaction_id]
         cui1, cui2 = interaction_id.split('-')
-        interaction_dict[cui1].remove(interaction_id)
-        interaction_dict[cui2].remove(interaction_id)
-
-    for cui in interaction_dict:
-        if cui not in cui_dict:
-            del cui_dict[cui]
+        if interaction_id in interaction_dict[cui1]:
+            interaction_dict[cui1].remove(interaction_id)
+        if interaction_id in interaction_dict[cui2]:
+            interaction_dict[cui2].remove(interaction_id)
 
     return interaction_dict, sentence_dict, cui_dict, paper_metadata_dict
 
 
-def form_dicts(positive_sents: List, out_file: str, blacklist_str: List[str], timestr: str):
+def form_dicts(positive_sents: List[EvidenceSentence], out_file: str, blacklist_str: List[str], timestr: str):
     """
     Create final dictionaries for supp.ai
     :param positive_sents:
@@ -321,6 +321,9 @@ def form_dicts(positive_sents: List, out_file: str, blacklist_str: List[str], ti
     interactions, sentences, cuis, papers = create_paper_metadata_dict(interactions, sentences, cuis)
 
     interactions = {k: list(v) for k, v in interactions.items()}
+    sentences = {k: [s.as_json() for s in v] for k, v in sentences.items()}
+    cuis = {k: v.as_json() for k, v in cuis.items()}
+    papers = {k: v.as_json() for k, v in papers.items()}
 
     # output file names
     interaction_file = 'output/interaction_id_dict.json'

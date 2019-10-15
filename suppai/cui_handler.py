@@ -5,6 +5,7 @@ Handles supplement and drug CUIs and merging logic
 
 import os
 import json
+from suppai.data import CUIMetadata
 
 
 CUI_FILE = 'data/cui_clusters.json'
@@ -54,21 +55,21 @@ class CUIHandler:
         :return:
         """
         if cui in self.supps:
-            return {
-                'preferred_name': self.cluster_dict['supplements'][cui]['preferred_name'],
-                'synonyms': self.cluster_dict['supplements'][cui]['synonyms'],
-                'definition': self.cluster_dict['supplements'][cui]['definition'],
-                'tradenames': [],
-                'ent_type': 'supplement'
-            }
+            return CUIMetadata(
+                ent_type="supplement",
+                preferred_name=self.cluster_dict['supplements'][cui]['preferred_name'],
+                synonyms=self.cluster_dict['supplements'][cui]['synonyms'],
+                tradenames=[],
+                definition=self.cluster_dict['supplements'][cui]['definition']
+            )
         elif cui in self.drugs:
-            return {
-                'preferred_name': self.cluster_dict['drugs'][cui]['preferred_name'],
-                'synonyms': self.cluster_dict['drugs'][cui]['synonyms'],
-                'definition': self.cluster_dict['drugs'][cui]['definition'],
-                'tradenames': self.cluster_dict['drugs'][cui]['tradenames'],
-                'ent_type': 'drug'
-            }
+            return CUIMetadata(
+                ent_type="drugs",
+                preferred_name=self.cluster_dict['drugs'][cui]['preferred_name'],
+                synonyms=self.cluster_dict['drugs'][cui]['synonyms'],
+                tradenames=self.cluster_dict['drugs'][cui]['tradenames'],
+                definition=self.cluster_dict['drugs'][cui]['definition']
+            )
         else:
             raise KeyError("Invalid supplement or drug CUI!")
 

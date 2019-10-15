@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 
 # activate conda environment
+export PATH=$PATH:/home/lucyw/miniconda3/bin
+cd /home/lucyw/git/supp-ai-data/
 source activate suppai
 
 # Get new papers and run through pipeline
@@ -9,6 +11,9 @@ python scripts/preprocess.py
 
 echo 'Running beaker experiments...'
 python scripts/run_beaker.py
+
+echo 'Get S2 paper data...'
+python scripts/get_pubmed_paper_info.py
 
 echo 'Postprocessing data...'
 python scripts/postprocess.py

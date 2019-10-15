@@ -1,11 +1,13 @@
-from collections import Counter, defaultdict
+from collections import defaultdict
 from typing import List, Dict
 
 from s2base2.config import DB_S2_CORPUS
 from s2base2.db_utils import S2DBIterator
 
+from suppai.data import PaperAuthor
 
-def get_paper_metadata(s2_ids: List[str]) -> Dict:
+
+def get_paper_metadata(s2_ids: List[str]) -> Dict[str, Dict]:
     """Get metadata entries from papers table"""
 
     metadata_query = """
@@ -27,8 +29,7 @@ def get_paper_metadata(s2_ids: List[str]) -> Dict:
             "venue": row[4],
             "doi": row[5],
             "pmid": row[6],
-            "fields_of_study": row[7],
-            # "source": row[8]
+            "fields_of_study": row[7]
         }
 
     new_paper_ids = list(s2_id_to_hash.keys())
@@ -48,12 +49,12 @@ def get_paper_metadata(s2_ids: List[str]) -> Dict:
         author_entries.sort(key=lambda x: x[0])
         author_list = []
         for entry in author_entries:
-            author_list.append({
-                "first": entry[1],
-                "middle": ' '.join(entry[2]) if entry[2] else None,
-                "last": entry[3],
-                "suffix": entry[4]
-            })
+            author_list.append(PaperAuthor(
+                first=entry[1],
+                middle=' '.join(entry[2]) if entry[2] else None,
+                last=entry[3],
+                suffix=entry[4]
+            ))
         s2_id_to_metadata[s2_id_to_hash[new_id]]["authors"] = author_list
 
     return s2_id_to_metadata
