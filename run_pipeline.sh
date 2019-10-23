@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 
 # activate conda environment
-export PATH=$PATH:/home/lucyw/miniconda3/bin
-cd /home/lucyw/git/supp-ai-data/
+export PATH=$PATH:~/miniconda3/bin
+cd ~/git/supp-ai-data/
 source activate suppai
 
 # Get new papers and run through pipeline
