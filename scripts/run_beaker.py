@@ -13,7 +13,7 @@ BEAKER_TEMPLATE = """
 description: BERT_DDI eval {} (try5 model)
 tasks:
 - spec:
-    image: im_2pdmza6rgoc1
+    image: oyvindt/allennlpDdiV3
     resultPath: /output
     args:
     - python
@@ -88,7 +88,7 @@ if __name__ == '__main__':
         beaker_args = ['beaker', 'dataset', 'create', ds_file]
         ds_output = subprocess.check_output(' '.join(beaker_args), stderr=subprocess.STDOUT, shell=True)
         ds_sents = [s.strip() for s in ds_output.decode('utf-8').split('\n')]
-        ds_identifier = ds_sents[0].split()[-1]
+        ds_identifier = ds_sents[1].split()[-1]
         if ds_identifier.startswith('ds_'):
             ds_ids.append(ds_identifier)
         else:
@@ -108,7 +108,7 @@ if __name__ == '__main__':
         beaker_args = ['beaker', 'experiment', 'create', '-f', yaml_file]
         exp_output = subprocess.check_output(' '.join(beaker_args), stderr=subprocess.STDOUT, shell=True)
         exp_sents = [s.strip() for s in exp_output.decode('utf-8').split('\n')]
-        exp_identifier = exp_sents[0].split()[1]
+        exp_identifier = exp_sents[1].split()[1]
         if exp_identifier.startswith('ex_'):
             exp_ids.append(exp_identifier)
         else:
