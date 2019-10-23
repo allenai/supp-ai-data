@@ -151,7 +151,7 @@ def create_interaction_sentence_dicts(positives: List[EvidenceSentence], blackli
 
         # add interaction id to both CUIs
         interaction_dict[pos.arg1.id].add(interaction_id)
-        interaction_dict[pos.arg1.id].add(interaction_id)
+        interaction_dict[pos.arg2.id].add(interaction_id)
 
         # add interaction sentence to sentence dict
         sentence_dict[interaction_id].append(pos)
@@ -296,6 +296,10 @@ def create_paper_metadata_dict(
         if interaction_id in interaction_dict[cui2]:
             interaction_dict[cui2].remove(interaction_id)
 
+    cuis_to_remove = [cui for cui in interaction_dict if cui not in cui_dict]
+    for cui in cuis_to_remove:
+        del interaction_dict[cui]
+
     return interaction_dict, sentence_dict, cui_dict, paper_metadata_dict
 
 
@@ -416,7 +420,8 @@ if __name__ == '__main__':
         json.dump({
             "timestamp": log_dict["timestamp"],
             "rerun_ner": False,
-            "rerun_ddi": False
+            "rerun_ddi": False,
+            "bert_ddi_model": log_dict['bert_ddi_model']
         }, config_f, indent=4)
 
     print('done.')
