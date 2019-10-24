@@ -48,3 +48,7 @@ speed
 fossil
 yen
 absolute
+retina
+retinal
+unmodified
+amp

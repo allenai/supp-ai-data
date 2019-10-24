@@ -146,6 +146,18 @@ def create_interaction_sentence_dicts(positives: List[EvidenceSentence], blackli
         if span2_lower.startswith("compound") or span2_lower.endswith("compound") or span2_lower.endswith("compounds"):
             continue
 
+        # if 'atp' linked to azathioprine
+        if pos.arg1.id == 'C0004482' and span1_lower == 'atp':
+            continue
+        if pos.arg2.id == 'C0004482' and span2_lower == 'atp':
+            continue
+
+        # if 'ca2' linked to infliximab
+        if pos.arg1.id == 'C0666743' and span1_lower == 'ca2':
+            continue
+        if pos.arg2.id == 'C0666743' and span2_lower == 'ca2':
+            continue
+
         # construct interaction id
         interaction_id = f'{pos.arg1.id}-{pos.arg2.id}'
 
