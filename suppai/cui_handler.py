@@ -64,7 +64,7 @@ class CUIHandler:
             )
         elif cui in self.drugs:
             return CUIMetadata(
-                ent_type="drugs",
+                ent_type="drug",
                 preferred_name=self.cluster_dict['drugs'][cui]['preferred_name'],
                 synonyms=self.cluster_dict['drugs'][cui]['synonyms'],
                 tradenames=self.cluster_dict['drugs'][cui]['tradenames'],

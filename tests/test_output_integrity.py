@@ -87,3 +87,24 @@ class TestDataIntegrity(unittest.TestCase):
             assert metadata
         for paper in self.paper_metadata.values():
             assert paper
+
+    def test_all_supp_drugs(self):
+        """
+        Assert all entities are supplements or drugs
+        :return:
+        """
+        for entry in self.cui_metadata.values():
+            assert entry['ent_type'] in {'supplement', 'drug'}
+
+    def test_all_sentences_valid(self):
+        """
+        Assert all sentences contain relations between supp-supp or supp-drug
+        :return:
+        """
+        for sentences in self.sentence_dict.values():
+            for sent in sentences:
+                arg1 = sent['arg1']['id']
+                arg2 = sent['arg2']['id']
+                arg1_type = self.cui_metadata[arg1]['ent_type']
+                arg2_type = self.cui_metadata[arg2]['ent_type']
+                assert {arg1_type, arg2_type}.issubset({"supplement", "drug"})
