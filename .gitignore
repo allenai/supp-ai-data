@@ -2,3 +2,6 @@
 tests/__pycache__/
 sandbox/
 output/
+.DS_Store
+data/training/
+eval/
