@@ -56,7 +56,7 @@ def keep_positives(input_dirs: List[str], label_dirs: List[str]) -> List[Evidenc
                     if 0 < READ_TOP_K_LINES <= line_index:
                         break
                     entry = json.loads(line)
-                    if entry["label-model"] == '1':
+                    if int(entry["label-model"]) == 1:
                         positive_keys.add(entry["id"])
 
             # get sentence info for positive sentences

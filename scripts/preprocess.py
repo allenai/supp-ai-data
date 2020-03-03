@@ -147,7 +147,7 @@ def batch_filter_sentences(batch_dict: Dict):
 
 
 CONFIG_FILE = 'config/config.json'
-NUM_PROCESSES = multiprocessing.cpu_count() // 2
+NUM_PROCESSES = multiprocessing.cpu_count() // 4
 
 if __name__ == '__main__':
     # load config file
@@ -166,6 +166,11 @@ if __name__ == '__main__':
     else:
         LAST_TIME = None
 
+    if LAST_TIME:
+        print(f"Retrieving papers since {LAST_TIME.strftime('%Y-%m-%dT%H:%M:%S.%fZ')}...")
+    else:
+        print('Retrieving all papers...')
+
     # get start time
     START_TIME = datetime.now()
 
@@ -178,18 +183,19 @@ if __name__ == '__main__':
     OUTPUT_FILE = f'output/{header_str}.tar.gz'
 
     # remaining headers
-    BASE_DIR = f'data/{header_str}/'
+    DATA_DIR = '/net/nfs.corp/s2-research/suppai-data/'
+    BASE_DIR = os.path.join(DATA_DIR, header_str)
     RAW_DATA_DIR = os.path.join(BASE_DIR, 's2_data')
     ENTITY_DIR = os.path.join(BASE_DIR, 's2_entities')
     SUPP_SENTS_DIR = os.path.join(BASE_DIR, 's2_supp_sents')
     DDI_OUTPUT_DIR = os.path.join(BASE_DIR, 'ddi_output')
 
     # make output directories
-    os.makedirs(BASE_DIR)
-    os.makedirs(RAW_DATA_DIR)
-    os.makedirs(ENTITY_DIR)
-    os.makedirs(SUPP_SENTS_DIR)
-    os.makedirs(DDI_OUTPUT_DIR)
+    os.makedirs(BASE_DIR, exist_ok=True)
+    os.makedirs(RAW_DATA_DIR, exist_ok=True)
+    os.makedirs(ENTITY_DIR, exist_ok=True)
+    os.makedirs(SUPP_SENTS_DIR, exist_ok=True)
+    os.makedirs(DDI_OUTPUT_DIR, exist_ok=True)
 
     # --- get new data from S2 DB ---
     print('Getting new papers from S2 DB...')
@@ -201,7 +207,7 @@ if __name__ == '__main__':
     # form batches
     if rerun_ner:
         all_files = []
-        for raw_dir in glob.glob(os.path.join('data', '*', 's2_data')):
+        for raw_dir in glob.glob(os.path.join(DATA_DIR, '*', 's2_data')):
             all_files += glob.glob(os.path.join(raw_dir, '*.jsonl'))
     else:
         all_files = glob.glob(os.path.join(RAW_DATA_DIR, '*.jsonl'))
@@ -227,7 +233,7 @@ if __name__ == '__main__':
         all_files = glob.glob(os.path.join(ENTITY_DIR, 'entities.jsonl.*'))
     else:
         all_files = []
-        for ent_dir in glob.glob(os.path.join('data', '*', 's2_entities')):
+        for ent_dir in glob.glob(os.path.join(DATA_DIR, '*', 's2_entities')):
             all_files += glob.glob(os.path.join(ent_dir, 'entities.jsonl.*'))
     print(f'{len(all_files)} entity files for filtering.')
 

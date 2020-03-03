@@ -10,18 +10,16 @@ from s2base2.list_utils import make_chunks
 
 
 BEAKER_TEMPLATE = """
-description: BERT_DDI eval {} (try5 model)
+description: BERT_DDI eval {}
 tasks:
 - spec:
-    image: oyvindt/allennlpDdiV3
+    image: im_b8vlfez98454
     resultPath: /output
     args:
     - python
     - -m
     - allennlp.run
     - evaluate_custom
-    - --include-package
-    - bert_ddi
     - --evaluation-data-file
     - /dataset/data.jsonl
     - --metadata-fields
@@ -37,10 +35,11 @@ tasks:
     - datasetId: {}
       containerPath: /dataset/data.jsonl
     - datasetId: {}
-      containerPath: /model
+      subPath: model.tar.gz
+      containerPath: /model/model.tar.gz
     requirements:
       gpuCount: 1
-      preemptible: true
+      preemptible: false
 """
 
 LOG_FILE = 'config/log.json'
@@ -135,7 +134,7 @@ if __name__ == '__main__':
                 break
         # check if all experiments done
         if all_done:
-            print()
+            print('Experiments done.')
             break
         else:
             # wait 15 min and try all experiments again
