@@ -13,13 +13,15 @@ BEAKER_TEMPLATE = """
 description: BERT_DDI eval {}
 tasks:
 - spec:
-    image: im_b8vlfez98454
+    image: im_2pdmza6rgoc1
     resultPath: /output
     args:
     - python
     - -m
     - allennlp.run
     - evaluate_custom
+    - --include-package
+    - bert_ddi
     - --evaluation-data-file
     - /dataset/data.jsonl
     - --metadata-fields
@@ -33,10 +35,10 @@ tasks:
     - /model/model.tar.gz
     datasetMounts:
     - datasetId: {}
+      subPath: {}
       containerPath: /dataset/data.jsonl
     - datasetId: {}
-      subPath: model.tar.gz
-      containerPath: /model/model.tar.gz
+      containerPath: /model
     requirements:
       gpuCount: 1
       preemptible: false
@@ -103,7 +105,7 @@ if __name__ == '__main__':
         exp_header = f'supp_ai_exp_{i:02d}'
         yaml_file = os.path.join(BEAKER_DIR, f'{exp_header}.yaml')
         with open(yaml_file, 'w') as yaml_f:
-            yaml_f.write(BEAKER_TEMPLATE.format(exp_header, ds_id, bert_ddi_model))
+            yaml_f.write(BEAKER_TEMPLATE.format(exp_header, ds_id, ds_file.split('/')[-1], bert_ddi_model))
         beaker_args = ['beaker', 'experiment', 'create', '-f', yaml_file]
         exp_output = subprocess.check_output(' '.join(beaker_args), stderr=subprocess.STDOUT, shell=True)
         exp_sents = [s.strip() for s in exp_output.decode('utf-8').split('\n')]
@@ -129,6 +131,8 @@ if __name__ == '__main__':
             status_str = exp_info['nodes'][0]['status']
             if status_str == 'succeeded':
                 output_datasets[exp_id] = exp_info['nodes'][0]['resultId']
+            elif status_str == 'failed':
+                output_datasets[exp_id] = "FAILED"
             else:
                 all_done = False
                 break
