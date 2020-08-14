@@ -153,9 +153,9 @@ def create_interaction_sentence_dicts(positives: List[EvidenceSentence], blackli
             continue
 
         # if 'ca2' linked to infliximab
-        if pos.arg1.id == 'C0666743' and span1_lower == 'ca2':
+        if pos.arg1.id == 'C0666743' and (span1_lower == 'ca2' or span1_lower == 'ca2+'):
             continue
-        if pos.arg2.id == 'C0666743' and span2_lower == 'ca2':
+        if pos.arg2.id == 'C0666743' and (span2_lower == 'ca2' or span2_lower == 'ca2+'):
             continue
 
         # construct interaction id
@@ -373,7 +373,8 @@ def form_dicts(positive_sents: List[EvidenceSentence], out_file: str, blacklist_
 
 LOG_FILE = 'config/log.json'
 BLACKLIST_FILE = 'data/blacklist.txt'
-MEDLINE_METADATA = 'data/pmid_metadata.json.gz'
+DATA_DIR = '/net/nfs.corp/s2-research/suppai-data/'
+MEDLINE_METADATA = os.path.join(DATA_DIR, 'pmid_metadata.json.gz')
 
 RETRACTION_PUBTYPES = {
     'Retraction of Publication',
@@ -405,8 +406,8 @@ if __name__ == '__main__':
 
     # determine if need to aggregate results from multiple BERT-DDI runs
     if aggregate:
-        all_input_dir = sorted(glob.glob(os.path.join('data', '*', 's2_supp_sents')))
-        all_label_dir = sorted(glob.glob(os.path.join('data', '*', 'ddi_output')))
+        all_input_dir = sorted(glob.glob(os.path.join(DATA_DIR, '*', 's2_supp_sents')))
+        all_label_dir = sorted(glob.glob(os.path.join(DATA_DIR, '*', 'ddi_output')))
         if len(all_input_dir) != len(all_label_dir):
             print('Not the same number of input and label directories!')
             sys.exit(1)
