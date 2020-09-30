@@ -153,9 +153,9 @@ def create_interaction_sentence_dicts(positives: List[EvidenceSentence], blackli
             continue
 
         # if 'ca2' linked to infliximab
-        if pos.arg1.id == 'C0666743' and span1_lower == 'ca2':
+        if pos.arg1.id == 'C0666743' and (span1_lower == 'ca2' or span1_lower == 'ca2+'):
             continue
-        if pos.arg2.id == 'C0666743' and span2_lower == 'ca2':
+        if pos.arg2.id == 'C0666743' and (span2_lower == 'ca2' or span2_lower == 'ca2+'):
             continue
 
         # construct interaction id

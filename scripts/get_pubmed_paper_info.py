@@ -4,6 +4,8 @@ from joblib import Parallel, delayed
 from xml.etree import ElementTree as etree
 from urllib.error import URLError
 from urllib.request import urlopen
+import os
+import gzip
 import re
 import json
 from collections import defaultdict
@@ -12,7 +14,8 @@ title_sub = re.compile("[^\w\.']+")
 
 ES_URL = 'es5.development.s2.dev.ai2'
 MEDLINE_S3_URLS = ['s3://ai2-s2-data/medline/2019/baseline/', 's3://ai2-s2-data/medline/2019/update/']
-OUTPUT_PMID_FILE = 'data/pmid_metadata.json'
+DATA_DIR = '/net/nfs.corp/s2-research/suppai-data/'
+OUTPUT_PMID_FILE = os.path.join(DATA_DIR, 'pmid_metadata.json.gz')
 
 
 def process_s3_file(file_name):
@@ -90,8 +93,8 @@ if __name__ == '__main__':
             pmid_metadata[pmid]['meshlist'] = []
         pmid_metadata[pmid]['meshlist'].extend(result['meshlist'])
 
-    with open(OUTPUT_PMID_FILE, mode='wt') as outfile:
-        json.dump(pmid_metadata, outfile)
+    with gzip.open(OUTPUT_PMID_FILE, mode='wt') as zipfile:
+        json.dump(pmid_metadata, zipfile)
         '''
         The output file consists of one json object (dict). The key is a pubmed paper ID
         and the value is a dict with metadata about the paper (meshlist, pubtypeslist).
