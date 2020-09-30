@@ -14,7 +14,7 @@ def get_paper_metadata(s2_ids: List[str]) -> Dict[str, Dict]:
         SELECT t1.sha, t2.id, t2.title, t2.year, t2.venue, t2.doi, t2.pmid, t2.fields_of_study, t3.source
         FROM legacy_paper_ids t1 
         INNER JOIN papers t2 ON t1.paper_id = t2.id 
-        INNER JOIN sourced_paper t3 ON t1.paper_id = t3.id
+        INNER JOIN paper_sources t3 ON t1.paper_id = t3.paper_id
         WHERE t1.sha in ({});
     """.format(','.join([f"'{s2_id}'" for s2_id in s2_ids]))
 

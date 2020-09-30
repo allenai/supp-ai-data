@@ -371,9 +371,10 @@ def form_dicts(positive_sents: List[EvidenceSentence], out_file: str, blacklist_
         tar.add(meta_file, arcname=os.path.split(meta_file)[1])
 
 
+DATA_DIR = '/net/nfs.corp/s2-research/suppai-data/'
 LOG_FILE = 'config/log.json'
 BLACKLIST_FILE = 'data/blacklist.txt'
-MEDLINE_METADATA = 'data/pmid_metadata.json.gz'
+MEDLINE_METADATA = os.path.join(DATA_DIR, 'pmid_metadata.json.gz')
 
 RETRACTION_PUBTYPES = {
     'Retraction of Publication',
@@ -405,8 +406,8 @@ if __name__ == '__main__':
 
     # determine if need to aggregate results from multiple BERT-DDI runs
     if aggregate:
-        all_input_dir = sorted(glob.glob(os.path.join('data', '*', 's2_supp_sents')))
-        all_label_dir = sorted(glob.glob(os.path.join('data', '*', 'ddi_output')))
+        all_input_dir = sorted(glob.glob(os.path.join(DATA_DIR, '*', 's2_supp_sents')))
+        all_label_dir = sorted(glob.glob(os.path.join(DATA_DIR, '*', 'ddi_output')))
         if len(all_input_dir) != len(all_label_dir):
             print('Not the same number of input and label directories!')
             sys.exit(1)
