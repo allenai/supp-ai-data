@@ -26,6 +26,7 @@ class DataGetter:
         :return:
         """
         if self.last_time:
+            # TODO: this query no longer executes properly, psql kicks me off
             psql_date_format = self.last_time.strftime('%Y-%m-%d %H:%M:%S.%f+00')
             query = f"""
                 SELECT t2.sha, t1.title, t1.doi, t1.pmid, 
