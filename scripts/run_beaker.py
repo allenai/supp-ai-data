@@ -41,7 +41,7 @@ tasks:
       containerPath: /model
     requirements:
       gpuCount: 1
-      preemptible: false
+  cluster: ai2/shared-p100-1x-16x
 """
 
 LOG_FILE = 'config/log.json'
@@ -116,6 +116,7 @@ if __name__ == '__main__':
             exp_ids.append(None)
 
     # monitor experiments until done
+    # TODO: this no longer works; no status code is returned
     start_time = time.time()
     while True:
         now_time = time.time() - start_time
