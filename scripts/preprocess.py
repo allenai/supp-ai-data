@@ -13,12 +13,19 @@ from datetime import datetime
 from typing import Dict
 import itertools
 import shutil
+import logging
 
 from suppai.data_getter import DataGetter
 from suppai.ner_and_linker import DrugSupplementLinker
 from suppai.cui_handler import CUIHandler
 
 from s2base2.list_utils import make_chunks
+
+logger = logging.getLogger("spacy")
+logger.setLevel(logging.ERROR)
+
+logger = logging.getLogger("scispacy")
+logger.setLevel(logging.ERROR)
 
 
 def clean_ent(ent: Dict) -> Dict:
@@ -49,46 +56,46 @@ def batch_run_ner_linking(batch_dict: Dict):
     os.environ["MKL_NUM_THREADS"] = "1"
     os.environ["OMP_NUM_THREADS"] = "1"
 
-    file_list = batch_dict["file_list"]
+    input_file = batch_dict["file_to_process"]
     entity_file = batch_dict["entity_file"]
     skipped_file = batch_dict["skipped_file"]
 
     # fire up scispacy linker
     ds_linker = DrugSupplementLinker()
 
-    with open(entity_file, 'w+') as outf, open(skipped_file, 'w+') as skip_f:
-        # iterate through files in input list
-        for input_file in tqdm.tqdm(file_list):
-            with open(input_file, 'r') as f:
-                for line in f:
-                    entry = json.loads(line)
+    with open(input_file, 'r') as f, open(entity_file, 'w+') as outf, open(skipped_file, 'w+') as skip_f:
+        # process input file
+        for line in tqdm.tqdm(f):
+            entry = json.loads(line)
 
-                    # skip if no abstract
-                    if not entry['abstract']:
-                        skip_f.write(f"{entry['paper_id']}\n")
-                        continue
+            # skip if no abstract
+            if not entry['abstract']:
+                skip_f.write(f"{entry['corpus_id']}\n")
+                continue
 
-                    try:
-                        ents_per_sentence = ds_linker.get_linked_entities(
-                            entry['abstract'],
-                            top_k=3
-                        )
-                    except Exception as e:
-                        skip_f.write(f"{entry['paper_id']}\n")
-                        continue
+            try:
+                ents_per_sentence = ds_linker.get_linked_entities(
+                    entry['abstract'],
+                    top_k=3
+                )
+            except Exception as e:
+                skip_f.write(f"{entry['corpus_id']}\n")
+                continue
 
-                    # iterate through sentences
-                    for sent in ents_per_sentence:
-                        entities = sent["entities"]
-                        if entities:
-                            output_dict = {
-                                "id": entry["paper_id"],
-                                "sentence_id": sent["sent_num"],
-                                "sentence": sent["sentence"],
-                                "entities": entities
-                            }
-                            json.dump(output_dict, outf)
-                            outf.write('\n')
+            # iterate through sentences
+            for sent in ents_per_sentence:
+                if not sent["sentence"].strip():
+                    continue
+                entities = sent["entities"]
+                if entities and len(entities) > 0:
+                    output_dict = {
+                        "id": entry["corpus_id"],
+                        "sentence_id": sent["sent_num"],
+                        "sentence": sent["sentence"].strip(),
+                        "entities": entities
+                    }
+                    json.dump(output_dict, outf)
+                    outf.write('\n')
 
 
 def batch_filter_sentences(batch_dict: Dict):
@@ -147,7 +154,7 @@ def batch_filter_sentences(batch_dict: Dict):
 
 
 CONFIG_FILE = 'config/config.json'
-NUM_PROCESSES = multiprocessing.cpu_count() // 4
+NUM_PROCESSES = multiprocessing.cpu_count() // 8
 
 if __name__ == '__main__':
     # load config file
@@ -208,19 +215,17 @@ if __name__ == '__main__':
     if rerun_ner:
         all_files = []
         for raw_dir in glob.glob(os.path.join(DATA_DIR, '*', 's2_data')):
-            all_files += glob.glob(os.path.join(raw_dir, '*.jsonl'))
+            all_files += glob.glob(os.path.join(raw_dir, 's2_data_*'))
     else:
-        all_files = glob.glob(os.path.join(RAW_DATA_DIR, '*.jsonl'))
+        all_files = glob.glob(os.path.join(RAW_DATA_DIR, 's2_data_*'))
     print(f'{len(all_files)} S2 data files for NER and linking.')
 
     batches = [{
         "batch_num": batch_num,
-        "file_list": file_batch,
+        "file_to_process": file_name,
         "entity_file": os.path.join(ENTITY_DIR, f'entities.jsonl.{batch_num}'),
         "skipped_file": os.path.join(ENTITY_DIR, f'skipped.txt.{batch_num}')
-    } for batch_num, file_batch in enumerate(make_chunks(
-        sorted(all_files), NUM_PROCESSES
-    ))]
+    } for batch_num, file_name in enumerate(all_files)]
     with multiprocessing.Pool(processes=NUM_PROCESSES) as p:
         p.map(batch_run_ner_linking, batches)
 
