@@ -39,18 +39,16 @@ class DrugSupplementLinker:
         self.nlp = spacy.load("en_core_sci_sm", disable=["tagger", "parser", "textcat"])
 
         # add sentence tokenizer back in (need to add explicitly when removing dependency parser)
-        self.nlp.add_pipe(self.nlp.create_pipe('sentencizer'))
+        self.nlp.add_pipe('sentencizer')
 
         # add abbreviation detection
-        abbreviation_pipe = AbbreviationDetector(self.nlp)
-        self.nlp.add_pipe(abbreviation_pipe)
+        self.nlp.add_pipe('abbreviation_detector')
 
         # add UMLS linker
         # resolve_abbreviations uses abbreviation detection results for linking
         # filter_for_definitions allows linker to link to entities without definitions in UMLS
         # threshold determines which results to return (set to more stringent to improve precision)
-        self.linker = UmlsEntityLinker(resolve_abbreviations=True, filter_for_definitions=False, threshold=0.85)
-        self.nlp.add_pipe(self.linker)
+        self.nlp.add_pipe("scispacy_linker", config={"resolve_abbreviations": True, "linker_name": "umls"})
 
     def get_linked_entities(self, text: str, top_k=1) -> List[Dict]:
         """
@@ -60,6 +58,7 @@ class DrugSupplementLinker:
         :return:
         """
         doc = self.nlp(text)
+        linker = self.nlp.get_pipe("scispacy_linker")
 
         # keep list of relevant entities (those with matching semantic types)
         entities_by_sentence = []
@@ -71,7 +70,8 @@ class DrugSupplementLinker:
             for ent in sent.ents:
 
                 # list of linked entities from scispacy output
-                linked_ents = [(self.linker.umls.cui_to_entity[cui], score) for cui, score in ent._.umls_ents[:top_k]]
+                # linked_ents = [(linker.umls.cui_to_entity[cui], score) for cui, score in ent._.umls_ents[:top_k]]
+                linked_ents = [(linker.kb.cui_to_entity[cui], score) for cui, score in ent._.kb_ents[:top_k]]
 
                 # list of linked entities filtered by semantic type
                 linked_cuis = []
