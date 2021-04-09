@@ -103,12 +103,12 @@ def keep_positives(input_dirs: List[str], label_dirs: List[str]) -> List[Evidenc
 
 
 def create_interaction_sentence_dicts(
-        positives: List[EvidenceSentence], blacklist: List[str]
+        positives: List[EvidenceSentence], blocklist: List[str]
 ) -> Tuple[Dict, Dict, List]:
     """
     Create interaction and sentence dicts
     :param positives:
-    :param blacklist:
+    :param blocklist:
     :return:
     """
     # initialize
@@ -140,12 +140,12 @@ def create_interaction_sentence_dicts(
             skip_list.append(('no_supps', pos))
             continue
 
-        # if any of the spans are in blacklist
+        # if any of the spans are in blocklist
         span1_lower = pos.sentence[pos.arg1.span[0]:pos.arg1.span[1]].strip(' .,').lower()
         span2_lower = pos.sentence[pos.arg2.span[0]:pos.arg2.span[1]].strip(' .,').lower()
 
-        if span1_lower in blacklist or span2_lower in blacklist:
-            skip_list.append(('skip_list', pos))
+        if span1_lower in blocklist or span2_lower in blocklist:
+            skip_list.append(('block_list', pos))
             continue
 
         # if either span starts or ends with compound(s)
@@ -331,18 +331,18 @@ def create_paper_metadata_dict(
     return interaction_dict, sentence_dict, cui_dict, paper_metadata_dict
 
 
-def form_dicts(interactions: List[EvidenceSentence], output_file: str, blacklist_spans: List[str], timestr: str):
+def form_dicts(interactions: List[EvidenceSentence], output_file: str, blocklist_spans: List[str], timestr: str):
     """
     Create final dictionaries for supp.ai
     :param interactions:
     :param output_file:
-    :param blacklist_spans:
+    :param blocklist_spans:
     :param timestr:
     :return:
     """
     # CREATE INTERACTION IDS AND SENTENCE DICT
     print('Creating interaction and sentence dicts...')
-    interaction_dict, sentence_dict, skipped = create_interaction_sentence_dicts(interactions, blacklist_spans)
+    interaction_dict, sentence_dict, skipped = create_interaction_sentence_dicts(interactions, blocklist_spans)
 
     print(f'Skipped {len(skipped)} sentences: ')
     print(Counter([s[0] for s in skipped]).most_common(10))
@@ -392,7 +392,7 @@ def form_dicts(interactions: List[EvidenceSentence], output_file: str, blacklist
 
 DATA_DIR = '/net/nfs.corp/s2-research/suppai-data/'
 LOG_FILE = 'config/log.json'
-BLACKLIST_FILE = 'data/blacklist.txt'
+BLOCKLIST_FILE = 'data/blocklist.txt'
 MEDLINE_METADATA = os.path.join(DATA_DIR, 'pmid_metadata.json.gz')
 
 RETRACTION_PUBTYPES = {
@@ -437,14 +437,14 @@ if __name__ == '__main__':
     # filter and keep only positive interactions labeled by model
     interactions = keep_positives(all_input_dir, all_label_dir)
 
-    # load blacklist spans
-    blacklist_spans = []
-    with open(BLACKLIST_FILE, 'r') as f:
+    # load blocklist spans
+    blocklist_spans = []
+    with open(BLOCKLIST_FILE, 'r') as f:
         for line in f:
-            blacklist_spans.append(line.strip())
+            blocklist_spans.append(line.strip())
 
     # form final dictionaries
-    form_dicts(interactions, output_file, blacklist_spans, log_dict['timestamp'])
+    form_dicts(interactions, output_file, blocklist_spans, log_dict['timestamp'])
     print(f'Dicts written to {output_file}')
 
     # write config file
