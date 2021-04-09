@@ -142,7 +142,7 @@ def batch_filter_sentences(batch_dict: Dict):
 
                 # create sentence entry for DDI model
                 output_dict = {
-                    "id": sent["id"] + '-' + str(counter),
+                    "id": str(sent["id"]) + '-' + str(counter),
                     "sentence_id": sent["sentence_id"],
                     "sentence": sent["sentence"],
                     "arg1": ent1,

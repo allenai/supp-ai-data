@@ -12,12 +12,12 @@ import tqdm
 import gzip
 import tarfile
 from typing import List, Dict, Tuple, Set
-from collections import defaultdict
+from collections import defaultdict, Counter
 import copy
 import re
 
 from suppai.cui_handler import CUIHandler
-from suppai.utils.db_utils import get_paper_metadata
+from suppai.utils.db_utils import get_paper_metadata_no_sha
 from suppai.data import CUIMetadata, PaperAuthor, PaperMetadata, LabeledSpan, EvidenceSentence
 
 from s2base2.list_utils import chunk_iter
@@ -102,7 +102,9 @@ def keep_positives(input_dirs: List[str], label_dirs: List[str]) -> List[Evidenc
     return positives
 
 
-def create_interaction_sentence_dicts(positives: List[EvidenceSentence], blacklist: List[str]) -> Tuple[Dict, Dict]:
+def create_interaction_sentence_dicts(
+        positives: List[EvidenceSentence], blacklist: List[str]
+) -> Tuple[Dict, Dict, List]:
     """
     Create interaction and sentence dicts
     :param positives:
@@ -112,6 +114,7 @@ def create_interaction_sentence_dicts(positives: List[EvidenceSentence], blackli
     # initialize
     interaction_dict = defaultdict(set)
     sentence_dict = defaultdict(list)
+    skip_list = []
 
     # create CUI handler
     handler = CUIHandler()
@@ -119,18 +122,22 @@ def create_interaction_sentence_dicts(positives: List[EvidenceSentence], blackli
     for pos in tqdm.tqdm(positives):
         # skip if sentence empty
         if not pos.sentence:
+            skip_list.append(('empty_sentence', pos))
             continue
 
         # if either cui are not normalizable
         if not pos.arg1.id or not pos.arg2.id:
+            skip_list.append(('missing_cuis', pos))
             continue
 
         # if CUIs are the same, skip
         if pos.arg1.id == pos.arg2.id:
+            skip_list.append(('same_cuis', pos))
             continue
 
         # if not one supplement and one drug or both supplements, skip
         if not handler.is_supp_drug(pos.arg1.id, pos.arg2.id) and not handler.is_supp_supp(pos.arg1.id, pos.arg2.id):
+            skip_list.append(('no_supps', pos))
             continue
 
         # if any of the spans are in blacklist
@@ -138,24 +145,31 @@ def create_interaction_sentence_dicts(positives: List[EvidenceSentence], blackli
         span2_lower = pos.sentence[pos.arg2.span[0]:pos.arg2.span[1]].strip(' .,').lower()
 
         if span1_lower in blacklist or span2_lower in blacklist:
+            skip_list.append(('skip_list', pos))
             continue
 
         # if either span starts or ends with compound(s)
         if span1_lower.startswith("compound") or span1_lower.endswith("compound") or span1_lower.endswith("compounds"):
+            skip_list.append(('compound_str', pos))
             continue
         if span2_lower.startswith("compound") or span2_lower.endswith("compound") or span2_lower.endswith("compounds"):
+            skip_list.append(('compound_str', pos))
             continue
 
         # if 'atp' linked to azathioprine
         if pos.arg1.id == 'C0004482' and span1_lower == 'atp':
+            skip_list.append(('atp_str', pos))
             continue
         if pos.arg2.id == 'C0004482' and span2_lower == 'atp':
+            skip_list.append(('atp_str', pos))
             continue
 
         # if 'ca2' linked to infliximab
         if pos.arg1.id == 'C0666743' and (span1_lower == 'ca2' or span1_lower == 'ca2+'):
+            skip_list.append(('ca2_str', pos))
             continue
         if pos.arg2.id == 'C0666743' and (span2_lower == 'ca2' or span2_lower == 'ca2+'):
+            skip_list.append(('ca2_str', pos))
             continue
 
         # construct interaction id
@@ -168,7 +182,7 @@ def create_interaction_sentence_dicts(positives: List[EvidenceSentence], blackli
         # add interaction sentence to sentence dict
         sentence_dict[interaction_id].append(pos)
 
-    return interaction_dict, sentence_dict
+    return interaction_dict, sentence_dict, skip_list
 
 
 def create_cui_metadata_dict(interaction_dict: Dict[str, Set], sentence_dict: Dict[str, List[EvidenceSentence]]):
@@ -245,6 +259,7 @@ def create_paper_metadata_dict(
 
     # Read relevant publication types and mesh terms.
     # TODO: change this to query the DB for this info so it's up-to-date
+    print('loading medline data...')
     with gzip.GzipFile(MEDLINE_METADATA, 'r') as medline_metadata_file:
         json_bytes = medline_metadata_file.read()
     json_str = json_bytes.decode('utf-8')
@@ -270,10 +285,10 @@ def create_paper_metadata_dict(
                       desc='Fetching paper metadata')):
         if 0 < READ_TOP_K_LINES <= paper_chunk_index:
             continue
-        paper_metadata = get_paper_metadata(paper_chunk)
+        paper_metadata = get_paper_metadata_no_sha(paper_chunk)
         # TODO: fails to retrieve metadata for some papers, check why, temp solution is to remove missing papers
-        for s2_id, metadata_entry in paper_metadata.items():
-            paper_metadata_dict[s2_id] = PaperMetadata(
+        for pid, metadata_entry in paper_metadata.items():
+            paper_metadata_dict[pid] = PaperMetadata(
                 title=metadata_entry["title"],
                 authors=metadata_entry["authors"],
                 year=metadata_entry["year"],
@@ -281,7 +296,7 @@ def create_paper_metadata_dict(
                 doi=metadata_entry["doi"],
                 pmid=metadata_entry["pmid"],
                 fields_of_study=metadata_entry["fields_of_study"],
-                retraction=metadata_entry["pmid"] in animal_pmids,
+                retraction=metadata_entry["pmid"] in retraction_pmids,
                 clinical_study=metadata_entry["pmid"] in clinical_trial_pmids,
                 human_study=metadata_entry["pmid"] in human_pmids,
                 animal_study=metadata_entry["pmid"] in animal_pmids
@@ -292,12 +307,13 @@ def create_paper_metadata_dict(
     print(f'{len(paper_ids_to_remove)} papers with missing metadata.')
 
     interactions_to_remove = []
-    for interaction_id, sentences in sentence_dict.items():
-        new_sents = [sent for sent in sentences if sent.paper_id not in paper_ids_to_remove]
-        if new_sents:
-            sentence_dict[interaction_id] = new_sents
-        else:
-            interactions_to_remove.append(interaction_id)
+    if paper_ids_to_remove:
+        for interaction_id, sentences in sentence_dict.items():
+            new_sents = [sent for sent in sentences if sent.paper_id not in paper_ids_to_remove]
+            if new_sents:
+                sentence_dict[interaction_id] = new_sents
+            else:
+                interactions_to_remove.append(interaction_id)
 
     for interaction_id in interactions_to_remove:
         if interaction_id in sentence_dict:
@@ -315,31 +331,34 @@ def create_paper_metadata_dict(
     return interaction_dict, sentence_dict, cui_dict, paper_metadata_dict
 
 
-def form_dicts(positive_sents: List[EvidenceSentence], out_file: str, blacklist_str: List[str], timestr: str):
+def form_dicts(interactions: List[EvidenceSentence], output_file: str, blacklist_spans: List[str], timestr: str):
     """
     Create final dictionaries for supp.ai
-    :param positive_sents:
-    :param out_file:
-    :param blacklist_str:
+    :param interactions:
+    :param output_file:
+    :param blacklist_spans:
     :param timestr:
     :return:
     """
     # CREATE INTERACTION IDS AND SENTENCE DICT
     print('Creating interaction and sentence dicts...')
-    interactions, sentences = create_interaction_sentence_dicts(positive_sents, blacklist_str)
+    interaction_dict, sentence_dict, skipped = create_interaction_sentence_dicts(interactions, blacklist_spans)
+
+    print(f'Skipped {len(skipped)} sentences: ')
+    print(Counter([s[0] for s in skipped]).most_common(10))
 
     # CREATE CUI METADATA DICT FROM ENTRIES IN INTERACTIONS
     print('Creating CUI metadata dict...')
-    interactions, sentences, cuis = create_cui_metadata_dict(interactions, sentences)
+    interaction_dict, sentence_dict, cui_dict = create_cui_metadata_dict(interaction_dict, sentence_dict)
 
     # CREATE PAPER METADATA DICT AND REMOVE MISSING ENTRIES FROM OTHER DICTS
     print('Creating paper metadata dict...')
-    interactions, sentences, cuis, papers = create_paper_metadata_dict(interactions, sentences, cuis)
+    interaction_dict, sentence_dict, cui_dict, paper_metadata_dict = create_paper_metadata_dict(interaction_dict, sentence_dict, cui_dict)
 
-    interactions = {k: list(v) for k, v in interactions.items()}
-    sentences = {k: [s.as_json() for s in v] for k, v in sentences.items()}
-    cuis = {k: v.as_json() for k, v in cuis.items()}
-    papers = {k: v.as_json() for k, v in papers.items()}
+    interaction_dict = {k: list(v) for k, v in interaction_dict.items()}
+    sentence_dict = {k: [s.as_json() for s in v] for k, v in sentence_dict.items()}
+    cui_dict = {k: v.as_json() for k, v in cui_dict.items()}
+    paper_metadata_dict = {k: v.as_json() for k, v in paper_metadata_dict.items()}
 
     # output file names
     interaction_file = 'output/interaction_id_dict.json'
@@ -350,20 +369,20 @@ def form_dicts(positive_sents: List[EvidenceSentence], out_file: str, blacklist_
 
     # write to output
     with open(interaction_file, 'w') as out_f:
-        json.dump(interactions, out_f, indent=4, sort_keys=True)
+        json.dump(interaction_dict, out_f, indent=4, sort_keys=True)
     with open(sentence_file, 'w') as out_f:
-        json.dump(sentences, out_f, indent=4, sort_keys=True)
+        json.dump(sentence_dict, out_f, indent=4, sort_keys=True)
     with open(paper_file, 'w') as out_f:
-        json.dump(papers, out_f, indent=4, sort_keys=True)
+        json.dump(paper_metadata_dict, out_f, indent=4, sort_keys=True)
     with open(cui_file, 'w') as out_f:
-        json.dump(cuis, out_f, indent=4, sort_keys=True)
+        json.dump(cui_dict, out_f, indent=4, sort_keys=True)
     with open(meta_file, 'w') as out_f:
         json.dump({
             "last_updated_on": timestr
         }, out_f)
 
     # tar and zip dicts together
-    with tarfile.open(out_file, "w:gz") as tar:
+    with tarfile.open(output_file, "w:gz") as tar:
         tar.add(interaction_file, arcname=os.path.split(interaction_file)[1])
         tar.add(sentence_file, arcname=os.path.split(sentence_file)[1])
         tar.add(paper_file, arcname=os.path.split(paper_file)[1])
