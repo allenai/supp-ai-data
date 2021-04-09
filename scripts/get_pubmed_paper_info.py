@@ -4,16 +4,19 @@ from joblib import Parallel, delayed
 from xml.etree import ElementTree as etree
 from urllib.error import URLError
 from urllib.request import urlopen
-import os
+import os, sys
 import gzip
 import re
 import json
 from collections import defaultdict
+from datetime import datetime
 
 title_sub = re.compile("[^\w\.']+")
 
 ES_URL = 'es5.development.s2.dev.ai2'
-MEDLINE_S3_URLS = ['s3://ai2-s2-data/medline/2019/baseline/', 's3://ai2-s2-data/medline/2019/update/']
+today = datetime.today()
+datey = today.year
+MEDLINE_S3_URLS = [f's3://ai2-s2-data/medline/{datey}/baseline/', f's3://ai2-s2-data/medline/{datey}/update/']
 DATA_DIR = '/net/nfs.corp/s2-research/suppai-data/'
 OUTPUT_PMID_FILE = os.path.join(DATA_DIR, 'pmid_metadata.json.gz')
 

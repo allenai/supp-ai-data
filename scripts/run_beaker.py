@@ -41,7 +41,7 @@ tasks:
       containerPath: /model
     requirements:
       gpuCount: 1
-  cluster: ai2/shared-p100-1x-16x
+  cluster: ai2/on-prem-ai2-server
 """
 
 LOG_FILE = 'config/log.json'
@@ -89,7 +89,7 @@ if __name__ == '__main__':
         beaker_args = ['beaker', 'dataset', 'create', ds_file]
         ds_output = subprocess.check_output(' '.join(beaker_args), stderr=subprocess.STDOUT, shell=True)
         ds_sents = [s.strip() for s in ds_output.decode('utf-8').split('\n')]
-        ds_identifier = ds_sents[1].split()[-1]
+        ds_identifier = ds_sents[0].split()[-1]
         if ds_identifier.startswith('ds_'):
             ds_ids.append(ds_identifier)
         else:
@@ -106,17 +106,17 @@ if __name__ == '__main__':
         yaml_file = os.path.join(BEAKER_DIR, f'{exp_header}.yaml')
         with open(yaml_file, 'w') as yaml_f:
             yaml_f.write(BEAKER_TEMPLATE.format(exp_header, ds_id, ds_file.split('/')[-1], bert_ddi_model))
-        beaker_args = ['beaker', 'experiment', 'create', '-f', yaml_file]
+        beaker_args = ['beaker', 'experiment', 'create', yaml_file]
         exp_output = subprocess.check_output(' '.join(beaker_args), stderr=subprocess.STDOUT, shell=True)
         exp_sents = [s.strip() for s in exp_output.decode('utf-8').split('\n')]
-        exp_identifier = exp_sents[1].split()[1]
+        exp_identifier = exp_sents[0].split()[1]
         if exp_identifier.startswith('ex_'):
             exp_ids.append(exp_identifier)
         else:
             exp_ids.append(None)
 
     # monitor experiments until done
-    # TODO: this no longer works; no status code is returned
+    # TODO: this no longer works; no result ID is returned
     start_time = time.time()
     while True:
         now_time = time.time() - start_time
@@ -128,8 +128,8 @@ if __name__ == '__main__':
                 continue
             beaker_args = ['beaker', 'experiment', 'inspect', exp_id]
             exp_output = subprocess.check_output(' '.join(beaker_args), stderr=subprocess.STDOUT, shell=True)
-            exp_info = json.loads(exp_output.decode('utf-8'))[0]
-            status_str = exp_info['nodes'][0]['status']
+            exp_info = exp_output.decode('utf-8').split()
+            status_str = exp_info[-1]
             if status_str == 'succeeded':
                 output_datasets[exp_id] = exp_info['nodes'][0]['resultId']
             elif status_str == 'failed':
