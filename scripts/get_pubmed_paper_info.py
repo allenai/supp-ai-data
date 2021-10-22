@@ -8,16 +8,16 @@ import os, sys
 import gzip
 import re
 import json
+from tqdm import tqdm
 from collections import defaultdict
 from datetime import datetime
 
 title_sub = re.compile("[^\w\.']+")
 
-ES_URL = 'es5.development.s2.dev.ai2'
 today = datetime.today()
 datey = today.year
 MEDLINE_S3_URLS = [f's3://ai2-s2-data/medline/{datey}/baseline/', f's3://ai2-s2-data/medline/{datey}/update/']
-DATA_DIR = '/net/nfs.corp/s2-research/suppai-data/'
+DATA_DIR = '/net/s3/s2-research/lucyw/pubmed/'
 OUTPUT_PMID_FILE = os.path.join(DATA_DIR, 'pmid_metadata.json.gz')
 
 
@@ -25,8 +25,6 @@ def process_s3_file(file_name):
     try:
         return (get_links_from_file(file_name), file_name)
     except Exception as e:
-        import pdb;
-        pdb.set_trace()
         return (e, file_name)
 
 
@@ -87,7 +85,7 @@ if __name__ == '__main__':
             results.extend(result)
 
     pmid_metadata = defaultdict(dict)
-    for result in results:
+    for result in tqdm(results):
         pmid = result['pmid']
         if 'pubtypeslist' not in pmid_metadata[pmid]:
             pmid_metadata[pmid]['pubtypeslist'] = []

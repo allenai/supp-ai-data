@@ -393,7 +393,7 @@ def form_dicts(interactions: List[EvidenceSentence], output_file: str, blocklist
 DATA_DIR = '/net/nfs.corp/s2-research/suppai-data/'
 LOG_FILE = 'config/log.json'
 BLOCKLIST_FILE = 'data/blocklist.txt'
-MEDLINE_METADATA = os.path.join(DATA_DIR, 'pmid_metadata.json.gz')
+MEDLINE_METADATA = os.path.join('/net/s3/s2-research/lucyw/pubmed/', 'pmid_metadata.json.gz')
 
 RETRACTION_PUBTYPES = {
     'Retraction of Publication',

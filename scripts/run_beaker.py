@@ -90,10 +90,7 @@ if __name__ == '__main__':
         ds_output = subprocess.check_output(' '.join(beaker_args), stderr=subprocess.STDOUT, shell=True)
         ds_sents = [s.strip() for s in ds_output.decode('utf-8').split('\n')]
         ds_identifier = ds_sents[0].split()[-1]
-        if ds_identifier.startswith('ds_'):
-            ds_ids.append(ds_identifier)
-        else:
-            ds_ids.append(None)
+        ds_ids.append(ds_identifier)
 
     # create beaker templates
     exp_ids = []
@@ -109,11 +106,8 @@ if __name__ == '__main__':
         beaker_args = ['beaker', 'experiment', 'create', yaml_file]
         exp_output = subprocess.check_output(' '.join(beaker_args), stderr=subprocess.STDOUT, shell=True)
         exp_sents = [s.strip() for s in exp_output.decode('utf-8').split('\n')]
-        exp_identifier = exp_sents[0].split()[1]
-        if exp_identifier.startswith('ex_'):
-            exp_ids.append(exp_identifier)
-        else:
-            exp_ids.append(None)
+        exp_identifier = exp_sents[0].split()[-1]
+        exp_ids.append(exp_identifier)
 
     # monitor experiments until done
     # TODO: this no longer works; no result ID is returned
