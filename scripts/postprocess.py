@@ -258,7 +258,6 @@ def create_paper_metadata_dict(
     paper_metadata_dict = dict()
 
     # Read relevant publication types and mesh terms.
-    # TODO: change this to query the DB for this info so it's up-to-date
     print('loading medline data...')
     with gzip.GzipFile(MEDLINE_METADATA, 'r') as medline_metadata_file:
         json_bytes = medline_metadata_file.read()

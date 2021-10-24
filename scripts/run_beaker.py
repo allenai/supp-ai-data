@@ -125,7 +125,7 @@ if __name__ == '__main__':
             exp_info = exp_output.decode('utf-8').split()
             status_str = exp_info[-1]
             if status_str == 'succeeded':
-                output_datasets[exp_id] = exp_info['nodes'][0]['resultId']
+                output_datasets[exp_id] = exp_info[5]
             elif status_str == 'failed':
                 output_datasets[exp_id] = "FAILED"
             else:
