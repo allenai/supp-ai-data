@@ -68,14 +68,21 @@ def batch_run_ner_linking(batch_dict: Dict):
         for line in tqdm.tqdm(f):
             entry = json.loads(line)
 
+            # skip if no title
+            if not entry['title']:
+                skip_f.write(f"{entry['corpus_id']}\n")
+                continue
+
             # skip if no abstract
             if not entry['abstract']:
                 skip_f.write(f"{entry['corpus_id']}\n")
                 continue
 
+            # form doc text
+            doc_text = entry['title'] + '. ' + entry['abstract']
             try:
                 ents_per_sentence = ds_linker.get_linked_entities(
-                    entry['abstract'],
+                    doc_text,
                     top_k=3
                 )
             except Exception as e:
