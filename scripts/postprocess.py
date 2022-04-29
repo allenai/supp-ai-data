@@ -389,7 +389,7 @@ def form_dicts(interactions: List[EvidenceSentence], output_file: str, blocklist
         tar.add(meta_file, arcname=os.path.split(meta_file)[1])
 
 
-DATA_DIR = '/net/nfs.corp/s2-research/suppai-data/'
+DATA_DIR = '/net/s3/s2-research/lucyw/suppai-data/'
 LOG_FILE = 'config/log.json'
 BLOCKLIST_FILE = 'data/blocklist.txt'
 MEDLINE_METADATA = os.path.join('/net/s3/s2-research/lucyw/pubmed/', 'pmid_metadata.json.gz')
