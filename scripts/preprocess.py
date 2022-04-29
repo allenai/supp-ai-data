@@ -197,7 +197,7 @@ if __name__ == '__main__':
     OUTPUT_FILE = f'output/{header_str}.tar.gz'
 
     # remaining headers
-    DATA_DIR = '/net/nfs.corp/s2-research/suppai-data/'
+    DATA_DIR = '/net/s3/s2-research/lucyw/suppai-data/'
     BASE_DIR = os.path.join(DATA_DIR, header_str)
     RAW_DATA_DIR = os.path.join(BASE_DIR, 's2_data')
     ENTITY_DIR = os.path.join(BASE_DIR, 's2_entities')
