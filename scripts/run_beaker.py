@@ -6,7 +6,7 @@ import subprocess
 import time
 import shutil
 
-from s2base2.list_utils import make_chunks
+from suppai.utils.list_utils import make_chunks
 
 
 BEAKER_TEMPLATE = """

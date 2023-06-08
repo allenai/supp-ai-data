@@ -1,7 +1,7 @@
 import json
 import unittest
 
-from s2base2.list_utils import flatten
+from suppai.utils.list_utils import flatten
 
 
 CUI_FILE = 'data/cui_clusters.json'

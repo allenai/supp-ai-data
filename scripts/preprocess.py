@@ -18,8 +18,8 @@ import logging
 from suppai.data_getter import DataGetter
 from suppai.ner_and_linker import DrugSupplementLinker
 from suppai.cui_handler import CUIHandler
+from suppai.utils.list_utils import make_chunks
 
-from s2base2.list_utils import make_chunks
 
 logger = logging.getLogger("spacy")
 logger.setLevel(logging.ERROR)
