@@ -1,5 +1,3 @@
-from s2base import file_util
-from s2base.elastic import default_es_client
 from joblib import Parallel, delayed
 from xml.etree import ElementTree as etree
 from urllib.error import URLError
@@ -32,8 +30,12 @@ def get_links_from_file(file_name):
     """ Go through a XML file and find the pubmed, pmc, and various database ids
         And also find all the article types
     """
+    rows = []
+    with open(file_name, 'r') as f:
+        for row in f:
+            rows.append(row)
 
-    root = etree.fromstringlist(list(file_util.read_lines(file_name, streaming=False)))
+    root = etree.fromstringlist(rows)
     paperinfos = []
     for child in root:
         databaseids = []
@@ -63,8 +65,7 @@ def get_links_from_file(file_name):
 
 
 if __name__ == '__main__':
-
-    files = [file for s3_url in MEDLINE_S3_URLS for file in file_util.iterate_files(s3_url)]
+    files = [file for s3_url in MEDLINE_S3_URLS for file in s3_url]
     list_of_results = Parallel(n_jobs=32, verbose=25)(delayed(process_s3_file)(file) for file in files)
 
     # some errored out - we catch those here and redo

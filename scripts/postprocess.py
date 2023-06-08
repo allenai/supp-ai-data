@@ -18,9 +18,8 @@ import re
 
 from suppai.cui_handler import CUIHandler
 from suppai.utils.db_utils import get_paper_metadata_no_sha
+from suppai.utils.list_utils import chunk_iter
 from suppai.data import CUIMetadata, PaperAuthor, PaperMetadata, LabeledSpan, EvidenceSentence
-
-from s2base2.list_utils import chunk_iter
 
 
 def keep_positives(input_dirs: List[str], label_dirs: List[str]) -> List[EvidenceSentence]:
